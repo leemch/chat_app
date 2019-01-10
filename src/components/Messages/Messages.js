@@ -8,6 +8,8 @@ import firebase from "../../firebase";
 class Messages extends React.Component {
 
     state = {
+        privateMessagesRef: firebase.database().ref("privateMessages"),
+        privateChannel: this.props.isPrivateChannel,
         messagesRef: firebase.database().ref("messages"),
         channel: this.props.currentChannel,
         user: this.props.currentUser,
@@ -33,7 +35,8 @@ class Messages extends React.Component {
 
     addMessageListener = channelId => {
         let loadedMessages = [];
-        this.state.messagesRef.child(channelId).on("child_added", snap => {
+        const ref = this.getMessagesRef();
+        ref.child(channelId).on("child_added", snap => {
             loadedMessages.push(snap.val());
             this.setState({
                 messages: loadedMessages,
@@ -42,6 +45,11 @@ class Messages extends React.Component {
             this.countUniqueUsers(loadedMessages);
         });
         
+    }
+
+    getMessagesRef = () => {
+        const {messagesRef, privateMessagesRef, privateChannel} = this.state;
+        return privateChannel ? privateMessagesRef : messagesRef;
     }
 
     countUniqueUsers = messages => {
@@ -62,7 +70,9 @@ class Messages extends React.Component {
         ))
     )
 
-    displayChannelName = (channel) => channel ? `#${channel.name}` : "";
+    displayChannelName = (channel) => {
+        return channel ? `${this.state.privateChannel ? "@" : "#"}${channel.name}` : "";
+    }
 
     handleSearchTerm = event => {
         this.setState({
@@ -86,17 +96,23 @@ class Messages extends React.Component {
 
 
     render(){
-        const {messagesRef, messages, channel, user, numUniqueUsers, searchTerm, searchResults, searchLoading} = this.state;
+        const {messagesRef, messages, channel, user, numUniqueUsers, searchTerm, searchResults, searchLoading, privateChannel} = this.state;
         return(
             <React.Fragment>
-                <MessagesHeader numUniqueUsers={numUniqueUsers} channelName={this.displayChannelName(channel)} handleSearchTerm={this.handleSearchTerm} searchLoading={searchLoading}/>
+                <MessagesHeader 
+                numUniqueUsers={numUniqueUsers} 
+                channelName={this.displayChannelName(channel)} 
+                handleSearchTerm={this.handleSearchTerm} 
+                searchLoading={searchLoading}
+                isPrivateChannel={privateChannel}
+                />
                 <Segment>
                     <Comment.Group className="messages">
 
                     {searchTerm ? this.displayMessages(searchResults): this.displayMessages(messages)}
                     </Comment.Group>
                 </Segment>
-                <MessageForm messagesRef={messagesRef} currentChannel={channel} currentUser={user} />
+                <MessageForm messagesRef={messagesRef} currentChannel={channel} currentUser={user} isPrivateChannel={privateChannel} getMessagesRef={this.getMessagesRef} />
             </React.Fragment>
         )
     }
